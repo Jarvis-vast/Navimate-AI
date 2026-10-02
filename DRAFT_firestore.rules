@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Primitives
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Validation Blueprint for UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['userId', 'email'])
+        && data.keys().hasOnly(['userId', 'email', 'displayName', 'photoURL', 'phone', 'preferredFuelType', 'createdAt', 'updatedAt'])
+        && data.userId is string && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.email is string && data.email.size() <= 256
+        && (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100))
+        && (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1024))
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 32))
+        && (!('preferredFuelType' in data) || (data.preferredFuelType in ['PETROL', 'DIESEL', 'EV', 'HYBRID', 'CNG']))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    // Validation Blueprint for TripRecord
+    function isValidTripRecord(data) {
+      return data.keys().hasAll(['tripId', 'userId', 'originName', 'destinationName', 'status'])
+        && data.keys().hasOnly([
+          'tripId', 'userId', 'originName', 'destinationName', 'distanceMeters',
+          'durationSeconds', 'fuelConsumedLitres', 'fuelCost', 'averageSpeedKmh',
+          'fuelType', 'currency', 'status', 'createdAt', 'completedAt', 'routeSummary'
+        ])
+        && data.tripId is string && data.tripId.size() <= 128 && data.tripId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId is string && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.originName is string && data.originName.size() <= 256
+        && data.destinationName is string && data.destinationName.size() <= 256
+        && data.status in ['COMPLETED', 'CANCELLED', 'ACTIVE', 'PLANNED']
+        && (!('distanceMeters' in data) || data.distanceMeters is number)
+        && (!('durationSeconds' in data) || data.durationSeconds is number)
+        && (!('fuelConsumedLitres' in data) || data.fuelConsumedLitres is number)
+        && (!('fuelCost' in data) || data.fuelCost is number)
+        && (!('averageSpeedKmh' in data) || data.averageSpeedKmh is number)
+        && (!('fuelType' in data) || (data.fuelType is string && data.fuelType.size() <= 32))
+        && (!('currency' in data) || (data.currency is string && data.currency.size() <= 8))
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64))
+        && (!('completedAt' in data) || (data.completedAt is string && data.completedAt.size() <= 64))
+        && (!('routeSummary' in data) || (data.routeSummary is string && data.routeSummary.size() <= 256));
+    }
+
+    // Validation Blueprint for SavedPlace
+    function isValidSavedPlace(data) {
+      return data.keys().hasAll(['id', 'userId', 'name'])
+        && data.keys().hasOnly(['id', 'userId', 'name', 'address', 'category', 'lat', 'lng', 'createdAt'])
+        && data.id is string && data.id.size() <= 128 && data.id.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.userId is string && data.userId.size() <= 128 && data.userId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.name is string && data.name.size() <= 100
+        && (!('address' in data) || (data.address is string && data.address.size() <= 256))
+        && (!('category' in data) || (data.category is string && data.category.size() <= 50))
+        && (!('lat' in data) || data.lat is number)
+        && (!('lng' in data) || data.lng is number)
+        && (!('createdAt' in data) || (data.createdAt is string && data.createdAt.size() <= 64));
+    }
+
+    // 1. User Profiles Collection
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // Blanket user profile scraping strictly forbidden
+      allow create: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().userId == userId;
+      allow update: if isOwner(userId) && isValidUserProfile(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isOwner(userId);
+    }
+
+    // 2. Trips Collection (History & Persistence)
+    match /trips/{tripId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(tripId) && isValidTripRecord(incoming()) && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && isValidTripRecord(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    // 3. Saved Places Collection
+    match /savedPlaces/{placeId} {
+      allow get: if isSignedIn() && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(placeId) && isValidSavedPlace(incoming()) && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && isValidSavedPlace(incoming()) && incoming().userId == existing().userId;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}

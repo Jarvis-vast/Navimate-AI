@@ -1,0 +1,9 @@
+{
+  "name": "NaviMate AI",
+  "description": "An AI-first personal driving copilot and navigation assistant with real-time routing, voice guidance, trip intelligence, fuel tracker, and offline caching.",
+  "requestFramePermissions": [
+    "geolocation",
+    "microphone"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

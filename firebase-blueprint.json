@@ -1,0 +1,73 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information linked to authenticated Firebase user account",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "maxLength": 256 },
+        "displayName": { "type": "string", "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 1024 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "preferredFuelType": { "type": "string", "enum": ["PETROL", "DIESEL", "EV", "HYBRID", "CNG"] },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["userId", "email"]
+    },
+    "TripRecord": {
+      "title": "TripRecord",
+      "description": "Persisted completed trip history with navigation, fuel economy, and cost analytics",
+      "type": "object",
+      "properties": {
+        "tripId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "originName": { "type": "string", "maxLength": 256 },
+        "destinationName": { "type": "string", "maxLength": 256 },
+        "distanceMeters": { "type": "number" },
+        "durationSeconds": { "type": "number" },
+        "fuelConsumedLitres": { "type": "number" },
+        "fuelCost": { "type": "number" },
+        "averageSpeedKmh": { "type": "number" },
+        "fuelType": { "type": "string", "maxLength": 32 },
+        "currency": { "type": "string", "maxLength": 8 },
+        "status": { "type": "string", "enum": ["COMPLETED", "CANCELLED", "ACTIVE", "PLANNED"] },
+        "createdAt": { "type": "string", "maxLength": 64 },
+        "completedAt": { "type": "string", "maxLength": 64 },
+        "routeSummary": { "type": "string", "maxLength": 256 }
+      },
+      "required": ["tripId", "userId", "originName", "destinationName", "status"]
+    },
+    "SavedPlace": {
+      "title": "SavedPlace",
+      "description": "User saved favorite locations, home, work, and charging/fuel stations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 256 },
+        "category": { "type": "string", "maxLength": 50 },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "userId", "name"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "User profile document isolated by authenticated user ID"
+    },
+    "/trips/{tripId}": {
+      "schema": { "$ref": "TripRecord" },
+      "description": "Trip history records owner-scoped by userId"
+    },
+    "/savedPlaces/{placeId}": {
+      "schema": { "$ref": "SavedPlace" },
+      "description": "User saved locations owner-scoped by userId"
+    }
+  }
+}

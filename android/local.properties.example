@@ -1,0 +1,10 @@
+## NaviMate AI — Local Configuration Template
+# Copy this file to 'local.properties' and fill in your restricted Google Maps Platform API key.
+# Note: Do NOT commit local.properties into source control.
+# Note: Do NOT supply server-side Gemini API keys here (Gemini orchestration runs strictly on the backend).
+
+# Required: Google Maps Platform API key with Navigation SDK and Routes API access
+MAPS_API_KEY=YOUR_RESTRICTED_GOOGLE_MAPS_KEY_HERE
+
+# Optional: Android SDK location if not set via environment variable ($ANDROID_HOME)
+# sdk.dir=/Users/username/Library/Android/sdk
